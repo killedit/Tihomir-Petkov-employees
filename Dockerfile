@@ -24,5 +24,7 @@ WORKDIR /var/www/html
 
 COPY . /var/www/html
 
+RUN echo "alias ll='ls -l'" >> /root/.bashrc
+
 EXPOSE 9000
 CMD ["php-fpm"]

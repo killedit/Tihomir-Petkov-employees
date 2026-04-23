@@ -1,7 +1,7 @@
 <?php
 
+use App\Http\Controllers\EmployeeProjectController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', [EmployeeProjectController::class, 'show']);
+Route::post('/', [EmployeeProjectController::class, 'process']);

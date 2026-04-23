@@ -1,0 +1,32 @@
+services:
+
+  laravel:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      args:
+        - USER_ID=${UID:-1000}
+        - GROUP_ID=${GID:-1000}
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+    env_file:
+      - .env
+    networks:
+      - sirma-network
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8088:80"
+    volumes:
+      - .:/var/www/html
+      - ./docker/nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - sirma-network
+
+networks:
+  sirma-network:
+    driver: bridge

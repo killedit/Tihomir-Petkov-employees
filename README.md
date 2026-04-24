@@ -13,20 +13,6 @@ The back-end Laravel API should run at:</br>
 `http://127.0.0.1:8088`
 
 
-
-To do:
-- parse that csv in php and run datetime calculations
-- support all datetime formats
-- print out ressults in a table
-- create ui? file picker? laravel blade?
-- some unit tests?
-- upload to github
-- send email with the link
-
-Done:
-- initial docker setup
-- generate random data in a csv format with the specific requirements for testing
-
 <!--
 
 TASK:

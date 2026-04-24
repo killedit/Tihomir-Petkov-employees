@@ -2,93 +2,85 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\CSVResource;
-use Illuminate\Http\Request;
+use App\Http\Requests\CSVRequest;
 use DateTime;
 
 class EmployeeProjectController extends Controller
 {
-    public function show(Request $request)
+    public function show()
     {
-        $results = $request->session()->get('employee_results');
-        $parseErrors = $request->session()->get('employee_errors');
-
-        return view('employees.terminal', ['results' => $results, 'parseErrors' => $parseErrors]);
+        return view('employees.terminal', [
+            'results'     => session('results'),
+            'parseErrors' => session('parseErrors'),
+        ]);
     }
 
-    public function process(CSVResource $request)
+    public function process(CSVRequest $request)
     {
-        # https://www.php.net/manual/en/function.fgetcsv.php
-        ini_set('auto_detect_line_endings', TRUE);
-
         $projects = [];
-        $errors = [];
+        $errors   = [];
 
-        try {
-            $request_file = $request->file('file');
-            $handle = fopen($request_file->getRealPath(), 'r');
+        $handle = fopen($request->file('file')->getRealPath(), 'r');
+
+        while (($row = fgetcsv($handle)) !== false) {
+
+            $parsed = $this->parseRow($row);
+
+            if(implode(',', $row) == "EmpID,ProjectID,DateFrom,DateTo") {
+                continue;
+            }
+
+            if ($parsed === null) {
+                $errors[] = "Skipped invalid row: " . implode(',', $row);
+                continue;
+            }
+
+            $projects[] = $parsed;
+        }
+
+        fclose($handle);
 
 // dd(
-//     $request
+//     $projects
 // );
 
-            while (($row = fgetcsv($handle)) !== FALSE) {
-
-                if(implode(',', $row) == "EmpID,ProjectID,DateFrom,DateTo") {
-                    continue;
-                }
-
-                [$employeeID, $projectID, $dateFrom, $dateTo] = [(int) trim($row[0]), (int) trim($row[1]), trim($row[2]), trim($row[3] ?: '')];
-
-                if (!is_numeric($employeeID) || !is_numeric($projectID)) {
-                    continue;
-                }
-
-                $parsedFrom = $this->parseDate($dateFrom, $errors, $employeeID, $projectID, 'DateFrom');
-                if (!$parsedFrom) {
-                    continue;
-                }
-
-                $parsedTo = $this->parseDate($dateTo === '' || strtolower($dateTo) === 'null' ? 'today' : $dateTo, $errors, $employeeID, $projectID, 'DateTo');
-                if (!$parsedTo) {
-                    continue;
-                }
-
-                $projects[] = [
-                    'emp_id' => $employeeID,
-                    'project_id' => $projectID,
-                    'date_from' => $parsedFrom,
-                    'date_to' => $parsedTo,
-                ];
-            }
-            fclose($handle);
-
-            $results = $this->findCommonProjectPairs($projects);
-        } catch (\Exception $e) {
-            // $errors[] = 'Error processing file: ' . $e->getMessage();
-            $errors[] = 'Error processing row [' . implode(', ', $row) . ']: ' . $e->getMessage();
-            $results = [];
-        }
-
-        $request->session()->flash('employee_results', $results);
-
-        if (!empty($errors)) {
-            $request->session()->flash('employee_errors', $errors);
-        }
-
-        return redirect()->back();
+        return redirect()->route('employees.show')
+        ->with('results',     $this->findCommonProjectPairs($projects))
+        ->with('parseErrors', $errors);
     }
 
-    private function parseDate(string $date, array &$errors, int $employeeID, int $projectID, string $field): ?DateTime
+    private function parseRow(array $row): ?array
     {
-        if ($date === 'today' || strtolower($date) === 'null') {
-            return new DateTime();
+        if (count($row) < 4) {
+            return null;
         }
 
+        [$employeeId, $projectId, $dateFrom, $dateTo] = array_map('trim', $row);
+
+        if (!ctype_digit($employeeId) || !ctype_digit($projectId)) {
+            return null;
+        }
+
+        $parsedFrom = $this->parseDate($dateFrom);
+        $parsedTo   = $this->parseDate(empty($dateTo) || strtolower($dateTo) === 'null' ? 'today' : $dateTo);
+
+        if (!$parsedFrom || !$parsedTo) {
+            return null;
+        }
+
+        return [
+            'employeeId' => (int) $employeeId,
+            'projectId'  => (int) $projectId,
+            'dateFrom'   => $parsedFrom,
+            'dateTo'     => $parsedTo,
+        ];
+    }
+
+    private function parseDate(string $date): ?DateTime
+    {
         try {
             return new DateTime($date);
-        } catch (\Exception $e) {
-            $errors[] = "employeeID {$employeeID}, projectID {$projectID}, {$field}: Unable to parse '{$date}'";
+        } catch (\Exception) {
             return null;
         }
     }
@@ -97,56 +89,37 @@ class EmployeeProjectController extends Controller
     {
         $overlaps = [];
 
-        foreach ($projects as $i => $p1) {
-            foreach ($projects as $j => $p2) {
-                if ($i >= $j) {
+        foreach ($projects as $p1) {
+            foreach ($projects as $p2) {
+                if ($p1 === $p2
+                    || $p1['employeeId'] === $p2['employeeId']
+                    || $p1['projectId']  !== $p2['projectId']
+                ) {
                     continue;
                 }
 
-                if ($p1['emp_id'] === $p2['emp_id']) {
-                    continue;
-                }
-
-                if ($p1['project_id'] !== $p2['project_id']) {
-                    continue;
-                }
-
-                $overlapStart = max($p1['date_from']->getTimestamp(), $p2['date_from']->getTimestamp());
-                $overlapEnd = min($p1['date_to']->getTimestamp(), $p2['date_to']->getTimestamp());
+                $overlapStart = max($p1['dateFrom'], $p2['dateFrom']);
+                $overlapEnd   = min($p1['dateTo'],   $p2['dateTo']);
 
                 if ($overlapStart > $overlapEnd) {
                     continue;
                 }
 
-                $key = $this->pairKey($p1['emp_id'], $p2['emp_id']);
-                $days = (int) floor(($overlapEnd - $overlapStart) / (60 * 60 * 24));
+                $emp1 = min($p1['employeeId'], $p2['employeeId']);
+                $emp2 = max($p1['employeeId'], $p2['employeeId']);
+                $key  = "{$emp1}-{$emp2}";
+                $days = $overlapStart->diff($overlapEnd)->days;
 
-                if (!isset($overlaps[$key])) {
-                    $overlaps[$key] = [
-                        'emp1' => $p1['emp_id'],
-                        'emp2' => $p2['emp_id'],
-                        'projects' => [],
-                        'total_days' => 0,
-                    ];
-                }
-
-                $overlaps[$key]['projects'][] = [
-                    'project_id' => $p1['project_id'],
-                    'days' => $days,
-                ];
+                $overlaps[$key] ??= ['emp1' => $emp1, 'emp2' => $emp2, 'projects' => [], 'total_days' => 0];
+                $overlaps[$key]['projects'][]  = ['project_id' => $p1['projectId'], 'days' => $days];
                 $overlaps[$key]['total_days'] += $days;
             }
         }
 
-        usort($overlaps, fn($a, $b) => $b['total_days'] <=> $a['total_days']);
+        usort($overlaps, function ($a, $b) {
+            return $b['total_days'] <=> $a['total_days'];
+        });
 
         return $overlaps;
-    }
-
-    private function pairKey(int $emp1, int $emp2): string
-    {
-        $ids = [$emp1, $emp2];
-        sort($ids);
-        return implode('-', $ids);
     }
 }

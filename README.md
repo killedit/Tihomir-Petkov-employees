@@ -2,6 +2,7 @@
 
 CSV data parser that identifies the pair of employees who have worked together on common projects for the longest period of time.
 
+
 ## Setup
 ```
 git clone https://github.com/killedit/Tihomir-Petkov-employees.git
@@ -12,6 +13,9 @@ docker compose up -d --build
 The back-end Laravel API should run at:</br>
 `http://127.0.0.1:8088`
 
+There is a csv file in the project directory `employees.csv` used for testing.
+
+![Sirma task](/resources/images/2026-04-23-sirma-task-home.png)
 
 <!--
 

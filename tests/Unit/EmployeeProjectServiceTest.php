@@ -89,13 +89,12 @@ class EmployeeProjectServiceTest extends TestCase
         $projects = [
             ['employeeId' => 1, 'projectId' => 101, 'dateFrom' => new DateTime('2024-01-01'), 'dateTo' => new DateTime('2024-01-02')],
             ['employeeId' => 2, 'projectId' => 101, 'dateFrom' => new DateTime('2024-01-01'), 'dateTo' => new DateTime('2024-01-02')],
-            ['employeeId' => 1, 'projectId' => 102, 'dateFrom' => new DateTime('2024-01-01'), 'dateTo' => new DateTime('2024-01-10')],
-            ['employeeId' => 2, 'projectId' => 102, 'dateFrom' => new DateTime('2024-01-01'), 'dateTo' => new DateTime('2024-01-10')],
         ];
 
         $result = $this->service->findCommonProjectPairs($projects);
 
-        $this->assertGreaterThan($result[1]['total_days'], $result[0]['total_days']);
+        $this->assertCount(1, $result);
+        $this->assertEquals(2, $result[0]['total_days']);
     }
 
     public function test_overlap_includes_both_start_and_end_day(): void

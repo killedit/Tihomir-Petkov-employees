@@ -36,9 +36,9 @@
         @if(count($results) > 0)
             <h2>Results (sorted by total days worked together)</h2>
             <p>Longest pair:
-                {{ $results[0]['emp1'] }},
-                {{ $results[0]['emp2'] }},
-                {{ $results[0]['total_days'] }} days
+                {{ reset($results)['emp1'] }},
+                {{ reset($results)['emp2'] }},
+                {{ reset($results)['total_days'] }} days
             </p>
 
             <table border="1">

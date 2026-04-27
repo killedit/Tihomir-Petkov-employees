@@ -29,11 +29,12 @@ class EmployeeProjectController extends Controller
 
         while (($row = fgetcsv($handle)) !== false) {
 
-            $parsed = $this->service->parseRow($row);
-
             if(implode(',', $row) == "EmpID,ProjectID,DateFrom,DateTo") {
                 continue;
             }
+
+            $parsed = $this->service->parseRow($row);
+
 
             if ($parsed === null) {
                 $errors[] = "Skipped invalid row: " . implode(',', $row);

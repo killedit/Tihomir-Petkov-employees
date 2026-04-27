@@ -46,8 +46,6 @@ class EmployeeProjectService
     {
         $overlaps = [];
 
-        $seen = [];
-
         foreach ($projects as $idx1 => $p1) {
             foreach ($projects as $idx2 => $p2) {
                 if ($idx1 >= $idx2) {
@@ -73,8 +71,7 @@ class EmployeeProjectService
 
                 $days = $this->calculateDays($overlapStart, $overlapEnd);
 
-                if (!isset($seen[$key])) {
-                    $seen[$key] = true;
+                if (!isset($overlaps[$key])) {
                     $overlaps[$key] = ['emp1' => $emp1, 'emp2' => $emp2, 'projects' => [], 'total_days' => 0];
                 }
 

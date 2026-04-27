@@ -17,6 +17,12 @@ There is a csv file in the project directory `employees.csv` used for testing.
 
 ![Sirma task](/resources/images/2026-04-23-sirma-task-home.png)
 
+## Unit tests
+
+```bash
+./vendor/bin/phpunit tests/Unit/EmployeeProjectServiceTest.php
+```
+
 <!--
 
 TASK:
